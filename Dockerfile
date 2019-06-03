@@ -2,8 +2,8 @@ FROM python:3
 
 RUN apt-get update && apt-get -y install ffmpeg git zip && apt-get clean
 
-RUN groupadd --gid 100 svtplay-dl && \
-    useradd --gid 100 --uid 1000 --create-home svtplay-dl
+RUN groupadd --gid 999 svtplay-dl && \
+    useradd --gid 999 --uid 999 --create-home svtplay-dl
 
 WORKDIR /home/svtplay-dl
 USER svtplay-dl
