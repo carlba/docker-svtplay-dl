@@ -17,7 +17,7 @@ def monitor(svtplay_dl_outpath: str, svtplay_dl_urls: []):
     while True:
         click.echo(f'Trying to download these URLs {svtplay_dl_urls}')
         try:
-            svtplay_dl('--output', svtplay_dl_outpath, '--remux', *svtplay_dl_urls, _fg=True)
+            svtplay_dl('--output', svtplay_dl_outpath, '-A', '--remux', *svtplay_dl_urls, _fg=True)
         except sh.ErrorReturnCode as err:
             click.echo(err)
             click.echo(err.stderr)
