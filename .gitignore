@@ -1,0 +1,7 @@
+# IDE:s
+.idea
+
+# Project Specific Files
+out/
+venv/
+

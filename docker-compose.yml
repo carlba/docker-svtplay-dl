@@ -1,0 +1,7 @@
+version: "3.7"
+services:
+  svtplay-dl:
+    build:
+      context: .
+    image: svtplay-dl
+    volumes:
