@@ -2,15 +2,23 @@ FROM python:3
 
 RUN apt-get update && apt-get -y install ffmpeg git zip && apt-get clean
 
+RUN groupadd --gid 999 svtplay-dl && \
+    useradd --gid 999 --uid 999 --create-home svtplay-dl
 
-WORKDIR /app
+WORKDIR /home/svtplay-dl
+USER svtplay-dl
+
+RUN echo $PATH
 
 ADD run.py ./
 ADD requirements.txt ./
 
+USER root
 RUN git clone https://github.com/spaam/svtplay-dl.git
 RUN cd svtplay-dl && make && make install && cd .. && pip install -r requirements.txt
+RUN chown -R svtplay-dl:svtplay-dl ../svtplay-dl
+USER svtplay-dl
 
 
-CMD python /app/run.py
+CMD python /home/svtplay-dl/run.py
 
