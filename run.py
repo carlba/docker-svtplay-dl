@@ -21,10 +21,11 @@ def main(svtplay_dl_outpath: str, svtplay_dl_urls: str):
     print (" ".join(svtplay_dl_urls_list))
 
     try:
-        svtplay_dl('--output', svtplay_dl_outpath, *svtplay_dl_urls_list, _fg=True)
+        svtplay_dl('--output', svtplay_dl_outpath, '--remux', *svtplay_dl_urls_list, _fg=True)
     except sh.ErrorReturnCode as err:
         print(err)
         print(err.stderr)
+
 
 if __name__ == "__main__":
     if is_debugging():
