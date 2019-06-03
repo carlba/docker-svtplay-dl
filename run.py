@@ -24,8 +24,7 @@ def monitor(svtplay_dl_outpath: str, svtplay_dl_urls: []):
 
         finally:
             click.echo(f'Finished downloading trying again in {60*30} seconds')
-
-        time.sleep(60*30)
+            time.sleep(60*30)
 
 
 @click.command()
