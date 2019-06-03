@@ -19,6 +19,6 @@ RUN cd svtplay-dl && make && make install && cd .. && pip install -r requirement
 RUN chown -R svtplay-dl:svtplay-dl ../svtplay-dl
 USER svtplay-dl
 
-
-CMD python /home/svtplay-dl/run.py
+VOLUME /home/svtplay-dl/output
+CMD cd /home/svtplay-dl && python /home/svtplay-dl/run.py
 
