@@ -1,9 +1,14 @@
-FROM python:3
+FROM python:3-alpine
 
-RUN apt-get update && apt-get -y install ffmpeg git zip && apt-get clean
+#RUN apt-get update && \
+#    apt-get -y install software-properties-common && \
+#    add-apt-repository ppa:jonathonf/ffmpeg-4 && \
+#    apt-get update && apt-get -y install ffmpeg git zip && apt-get clean
 
-RUN groupadd --gid 999 svtplay-dl && \
-    useradd --gid 999 --uid 999 --create-home svtplay-dl
+RUN apk add ffmpeg git zip make gcc libc-dev musl-dev libffi-dev openssl-dev
+
+RUN addgroup --gid 500 svtplay-dl && \
+    adduser -G svtplay-dl -u 500 --disabled-password svtplay-dl
 
 WORKDIR /home/svtplay-dl
 USER svtplay-dl
