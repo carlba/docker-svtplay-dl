@@ -4,4 +4,10 @@ services:
     build:
       context: .
     image: svtplay-dl
+    restart: always
+    user: "500:500"
     volumes:
+      - ./out:/output
+    environment:
+      SVTPLAY_DL_EPISODE_URLS: >
+        https://www.svtplay.se/video/20620212/henrik-schyffert-var-inte-radda
