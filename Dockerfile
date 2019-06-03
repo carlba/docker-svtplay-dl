@@ -1,10 +1,5 @@
 FROM python:3-alpine
 
-#RUN apt-get update && \
-#    apt-get -y install software-properties-common && \
-#    add-apt-repository ppa:jonathonf/ffmpeg-4 && \
-#    apt-get update && apt-get -y install ffmpeg git zip && apt-get clean
-
 RUN apk add ffmpeg git zip make gcc libc-dev musl-dev libffi-dev openssl-dev
 
 RUN addgroup --gid 500 svtplay-dl && \
