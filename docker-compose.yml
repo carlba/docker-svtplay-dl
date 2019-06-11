@@ -10,4 +10,7 @@ services:
       - ./out:/output
     environment:
       SVTPLAY_DL_EPISODE_URLS: >
-        https://www.svtplay.se/video/20620212/henrik-schyffert-var-inte-radda
+         https://www.svtplay.se/video/22581746/funkiskungen
+      SVTPLAY_DL_PLEX_TOKEN: <your plex token>
+      SVTPLAY_DL_PLEX_URL: servern.local
+      SVTPLAY_DL_PLEX_LIBRARY_SECTION: 5

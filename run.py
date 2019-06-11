@@ -7,6 +7,10 @@ from click.testing import CliRunner
 import sh
 # noinspection PyUnresolvedReferences
 from sh import svtplay_dl, ls
+import requests
+
+
+SVTPLAY_DL_EXCLUDES = 'teckentolkat'
 
 
 def is_debugging():
@@ -14,19 +18,46 @@ def is_debugging():
 
 
 def monitor(svtplay_dl_outpath: str, svtplay_dl_season_urls: [] = None,
-            svtplay_dl_episode_urls: [] = None):
+            svtplay_dl_episode_urls: [] = None, svtplay_dl_plex_url: str = None,
+            svtplay_dl_plex_token:str = None, svtplay_dl_plex_library_section: str = None):
 
     while True:
         try:
+            refresh_needed = False
             if svtplay_dl_season_urls:
                 click.echo(f'Trying to download these season URLs {svtplay_dl_season_urls}')
-                svtplay_dl('--output', svtplay_dl_outpath, '-A', '--remux',
-                           *svtplay_dl_season_urls, _fg=True)
+                # noinspection PyUnusedLocal
+                dl1: sh.RunningCommand
+                dl1 = svtplay_dl('--output', svtplay_dl_outpath, '-A', '--remux',
+                                 '--exclude', SVTPLAY_DL_EXCLUDES, *svtplay_dl_season_urls,
+                                 _bg=True,_in=sys.stdin,_iter='err')
+
+                for line in dl1:
+                    sys.stderr.write(line)
+                    if 'Muxing done, removing the old file.' in line:
+                        refresh_needed = True
 
             if svtplay_dl_episode_urls:
                 click.echo(f'Trying to download these episode URLs {svtplay_dl_episode_urls}')
-                svtplay_dl('--output', svtplay_dl_outpath, '--remux',
-                           *svtplay_dl_episode_urls, _fg=True)
+                # noinspection PyUnusedLocal
+                dl2: sh.RunningCommand
+                dl2 = svtplay_dl('--output', svtplay_dl_outpath,
+                                 '--remux', '--exclude', SVTPLAY_DL_EXCLUDES,
+                                 *svtplay_dl_episode_urls, _bg=True, _in=sys.stdin, _iter='err')
+
+                for line in dl2:
+                    sys.stderr.write(line)
+                    if 'Muxing done, removing the old file.' in line:
+                        refresh_needed = True
+
+            if refresh_needed:
+                result = requests.get(
+                        f'http://{svtplay_dl_plex_url}:32400/library/sections/'
+                        f'{svtplay_dl_plex_library_section}/refresh',
+                        params={'X-Plex-Token': svtplay_dl_plex_token})
+                # TODO: Better output of the Plex request
+                print(result)
+
         except sh.ErrorReturnCode as err:
             click.echo(err)
             click.echo(err.stderr)
@@ -41,8 +72,13 @@ def monitor(svtplay_dl_outpath: str, svtplay_dl_season_urls: [] = None,
 @click.argument('svtplay_dl_season_urls', envvar='SVTPLAY_DL_SEASON_URLS', required=False,
                 default=None)
 @click.argument('svtplay_dl_episode_urls', envvar='SVTPLAY_DL_EPISODE_URLS')
+@click.argument('svtplay_dl_plex_token', envvar='SVTPLAY_DL_PLEX_TOKEN', required=False)
+@click.argument('svtplay_dl_plex_url', envvar='SVTPLAY_DL_PLEX_URL', required=False)
+@click.argument('svtplay_dl_plex_library_section', envvar='SVTPLAY_DL_PLEX_LIBRARY_SECTION',
+                required=False)
 def main(svtplay_dl_outpath: str, svtplay_dl_season_urls: Optional[str],
-         svtplay_dl_episode_urls: Optional[str]):
+         svtplay_dl_episode_urls: Optional[str], svtplay_dl_plex_token: Optional[str],
+         svtplay_dl_plex_url: Optional[str], svtplay_dl_plex_library_section: Optional[str]):
     """Console script for docker-svtplay-dl"""
 
     dl_season_list, dl_episode_list = None, None
@@ -54,7 +90,9 @@ def main(svtplay_dl_outpath: str, svtplay_dl_season_urls: Optional[str],
         dl_episode_list = [x.strip()
                            for x in svtplay_dl_episode_urls.split(',')] or [svtplay_dl_episode_urls]
 
-    monitor(svtplay_dl_outpath, dl_season_list, dl_episode_list)
+    monitor(svtplay_dl_outpath, dl_season_list, dl_episode_list,
+            svtplay_dl_plex_url, svtplay_dl_plex_token,
+            svtplay_dl_plex_library_section)
 
 
 if __name__ == "__main__":
