@@ -1,6 +1,8 @@
+import os
 import sys
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 import click
 from click.testing import CliRunner
@@ -11,6 +13,7 @@ import requests
 
 
 SVTPLAY_DL_EXCLUDES = 'teckentolkat'
+RETRY_TIMEOUT = 60*30
 
 
 def is_debugging():
@@ -25,38 +28,58 @@ def update_plex_library(plex_url, plex_token, plex_library_section):
     return result
 
 
+def validate_link(url) -> bool:
+    result = requests.get(url)
+    return result.status_code == 200
+
+
+def parse_media_name_from_url(url):
+    return urlparse(url).path.split('/')[-1].strip('/')
+
+
+def download_url(url: str, download_path: str,
+                 svtplay_dl_params: list = None) -> Optional[sh.RunningCommand]:
+    parsed_url_path = parse_media_name_from_url(url)
+    out_path = os.path.join(download_path, parsed_url_path, '')
+
+    click.echo(f'Trying to download {parsed_url_path}:{url}:{out_path}')
+
+    if not validate_link(url):
+        click.echo(f'Unable to access {out_path}', sys.stderr)
+        return None
+
+    # noinspection PyUnusedLocal
+    return svtplay_dl('--output', out_path, *svtplay_dl_params, '--remux',
+                      '--exclude', SVTPLAY_DL_EXCLUDES, url,
+                      _bg=True, _in=sys.stdin, _iter='err')
+
+
 def monitor(svtplay_dl_outpath: str, svtplay_dl_season_urls: [] = None,
             svtplay_dl_episode_urls: [] = None, svtplay_dl_plex_url: str = None,
-            svtplay_dl_plex_token:str = None, svtplay_dl_plex_library_section: str = None):
+            svtplay_dl_plex_token: str = None, svtplay_dl_plex_library_section: str = None):
 
     while True:
         try:
             refresh_needed = False
             if svtplay_dl_season_urls:
-                click.echo(f'Trying to download these season URLs {svtplay_dl_season_urls}')
-                # noinspection PyUnusedLocal
-                dl1: sh.RunningCommand
-                dl1 = svtplay_dl('--output', svtplay_dl_outpath, '-A', '--remux',
-                                 '--exclude', SVTPLAY_DL_EXCLUDES, *svtplay_dl_season_urls,
-                                 _bg=True, _in=sys.stdin, _iter='err')
-
-                for line in dl1:
-                    sys.stderr.write(line)
-                    if 'Muxing done, removing the old file.' in line:
-                        refresh_needed = True
+                for url in svtplay_dl_season_urls:
+                    download = download_url(url, svtplay_dl_outpath, ['-A'])
+                    if not download:
+                        continue
+                    for line in download:
+                        sys.stderr.write(line)
+                        if 'Muxing done, removing the old file.' in line:
+                            refresh_needed = True
 
             if svtplay_dl_episode_urls:
-                click.echo(f'Trying to download these episode URLs {svtplay_dl_episode_urls}')
-                # noinspection PyUnusedLocal
-                dl2: sh.RunningCommand
-                dl2 = svtplay_dl('--output', svtplay_dl_outpath,
-                                 '--remux', '--exclude', SVTPLAY_DL_EXCLUDES,
-                                 *svtplay_dl_episode_urls, _bg=True, _in=sys.stdin, _iter='err')
-
-                for line in dl2:
-                    sys.stderr.write(line)
-                    if 'Muxing done, removing the old file.' in line:
-                        refresh_needed = True
+                for url in svtplay_dl_episode_urls:
+                    download = download_url(url, svtplay_dl_outpath)
+                    if not download:
+                        continue
+                    for line in download:
+                        sys.stderr.write(line)
+                        if 'Muxing done, removing the old file.' in line:
+                            refresh_needed = True
 
             if refresh_needed and all([svtplay_dl_plex_token, svtplay_dl_plex_url,
                                        svtplay_dl_plex_library_section]):
@@ -69,8 +92,8 @@ def monitor(svtplay_dl_outpath: str, svtplay_dl_season_urls: [] = None,
             click.echo(err)
             click.echo(err.stderr)
         finally:
-            click.echo(f'Finished downloading trying again in {60*30} seconds')
-            time.sleep(60*30)
+            click.echo(f'Finished downloading trying again in {RETRY_TIMEOUT} seconds')
+            time.sleep(RETRY_TIMEOUT)
 
 
 @click.command()
@@ -78,7 +101,7 @@ def monitor(svtplay_dl_outpath: str, svtplay_dl_season_urls: [] = None,
                 default=None)
 @click.argument('svtplay_dl_season_urls', envvar='SVTPLAY_DL_SEASON_URLS', required=False,
                 default=None)
-@click.argument('svtplay_dl_episode_urls', envvar='SVTPLAY_DL_EPISODE_URLS')
+@click.argument('svtplay_dl_episode_urls', envvar='SVTPLAY_DL_EPISODE_URLS', required=False)
 @click.argument('svtplay_dl_plex_token', envvar='SVTPLAY_DL_PLEX_TOKEN', required=False)
 @click.argument('svtplay_dl_plex_url', envvar='SVTPLAY_DL_PLEX_URL', required=False)
 @click.argument('svtplay_dl_plex_library_section', envvar='SVTPLAY_DL_PLEX_LIBRARY_SECTION',

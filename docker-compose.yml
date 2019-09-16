@@ -9,8 +9,8 @@ services:
     volumes:
       - ./out:/output
     environment:
-      SVTPLAY_DL_EPISODE_URLS: >
-         https://www.svtplay.se/video/22581746/funkiskungen
-      SVTPLAY_DL_PLEX_TOKEN: <your plex token>
+      SVTPLAY_DL_SEASON_URLS: >
+        https://www.svtplay.se/rapport
+      SVTPLAY_DL_PLEX_TOKEN: 4hWX9Caey4LqHwmw25xX
       SVTPLAY_DL_PLEX_URL: servern.local
       SVTPLAY_DL_PLEX_LIBRARY_SECTION: 5
