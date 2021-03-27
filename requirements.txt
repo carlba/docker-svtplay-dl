@@ -7,7 +7,7 @@ cryptography==3.3.2
 idna==2.8
 pycparser==2.19
 PySocks==1.7.0
-PyYAML==5.1
+PyYAML==5.4
 requests==2.22.0
 sh==1.12.14
 six==1.12.0
