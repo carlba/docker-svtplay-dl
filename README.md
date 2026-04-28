@@ -34,17 +34,24 @@ docker run --rm \
 
 If `SVTPLAY_DL_COMMANDS` is set, it is used for downloads.
 
-Example:
+For bind mounts and file ownership, this image supports building a container user with host UID/GID:
 
 ```yaml
 services:
   svtplay-dl:
-    image: docker-svtplay-dl:latest
+    build:
+      context: .
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
     environment:
       SVTPLAY_DL_COMMANDS: |
         svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...
         svtplay-dl --only-audio -o /downloads https://www.svtplay.se/audio/...
+      OUTPUT_DIR: /downloads
 ```
+
+This makes the container’s `svtplay` user match the host UID/GID, which avoids permission mismatches on mounted volumes.
 
 ## GitHub Actions / GHCR
 
