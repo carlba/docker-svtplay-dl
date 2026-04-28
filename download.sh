@@ -9,7 +9,7 @@ if [ -f /tmp/svtplay-dl-commands.txt ]; then
   while IFS= read -r cmd; do
     [ -z "$cmd" ] && continue
     echo "Running: $cmd"
-    su-exec svtplay sh -c "$cmd"
+    sh -c "$cmd"
   done < /tmp/svtplay-dl-commands.txt
   exit 0
 fi

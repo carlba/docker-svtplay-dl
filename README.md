@@ -1,12 +1,11 @@
 # docker-svtplay-dl
 
-A minimal Docker wrapper for `svtplay-dl` with built-in cron scheduling.
+A minimal Docker wrapper for `svtplay-dl` with periodic scheduling.
 
 ## What this image does
 
 - Installs `svtplay-dl` on Alpine Linux.
-- Runs `cron` inside the container.
-- Uses `CRON_SCHEDULE` to schedule downloads.
+- Runs downloads on a fixed 60-second sleep loop (no cron daemon).
 - Supports configurable download targets via `SVTPLAY_DL_COMMANDS`.
 - Builds and pushes to GitHub Container Registry via GitHub Actions.
 
@@ -28,7 +27,6 @@ docker run --rm \
 
 ## Configuration
 
-- `CRON_SCHEDULE` - Cron expression for when downloads should run (default: `0 3 * * *`).
 - `SVTPLAY_DL_COMMANDS` - One or more full `svtplay-dl` commands to run. Use a multiline value to define different commands for each download.
 - `OUTPUT_DIR` - Download destination inside the container (default: `/downloads`).
 
@@ -56,17 +54,20 @@ services:
       - ./config:/config:ro
 ```
 
-Because the container runs as a fixed non-root user, bind-mounted files written by the container may still appear owned by a numeric UID on the host, but the container itself will no longer run as root.
-
-To make host bind mounts writable by the container, either:
-
-- use a Docker named volume instead of a host path, or
-- make the host directory writable by uid `100` / gid `101`, for example:
+Because the container starts as root and uses `su-exec` to drop to the non-root
+`svtplay` user (uid 100) at runtime, the bind-mounted `/downloads` directory is
+automatically `chown`'d to `svtplay` on every container start. No manual host
+ownership changes are needed — just create the directory and mount it:
 
 ```sh
 mkdir -p downloads
-sudo chown -R 100:101 downloads
 ```
+
+Files written inside the container will be owned by uid `100` on the host, which
+is fine for a download-only directory. Host users can read them normally (default
+file mode 644). If you need the host user to own the files, run the container with
+`user: "${UID}:${GID}"` in Compose and accept that the `svtplay` user name will
+not resolve inside the container.
 
 ## GitHub Actions / GHCR
 
