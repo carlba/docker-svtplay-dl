@@ -4,9 +4,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        USER_ID: ${UID:-1000}
-        GROUP_ID: ${GID:-1000}
     image: docker-svtplay-dl:latest
     container_name: docker-svtplay-dl
     restart: unless-stopped

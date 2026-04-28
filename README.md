@@ -34,24 +34,29 @@ docker run --rm \
 
 If `SVTPLAY_DL_COMMANDS` is set, it is used for downloads.
 
-For bind mounts and file ownership, this image supports building a container user with host UID/GID:
+This image uses a fixed non-root `svtplay` user, and `/downloads`, `/var/log`, and `/var/run` are owned by that user.
+
+Example Compose configuration:
 
 ```yaml
 services:
   svtplay-dl:
     build:
       context: .
-      args:
-        USER_ID: ${UID:-1000}
-        GROUP_ID: ${GID:-1000}
+      dockerfile: Dockerfile
+    image: docker-svtplay-dl:latest
     environment:
+      CRON_SCHEDULE: '* * * * *'
       SVTPLAY_DL_COMMANDS: |
         svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...
         svtplay-dl --only-audio -o /downloads https://www.svtplay.se/audio/...
       OUTPUT_DIR: /downloads
+    volumes:
+      - ./downloads:/downloads
+      - ./config:/config:ro
 ```
 
-This makes the container’s `svtplay` user match the host UID/GID, which avoids permission mismatches on mounted volumes.
+Because the container runs as a fixed non-root user, bind-mounted files written by the container may still appear owned by a numeric UID on the host, but the container itself will no longer run as root.
 
 ## GitHub Actions / GHCR
 
