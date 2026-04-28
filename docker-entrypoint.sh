@@ -12,7 +12,6 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 
 mkdir -p "$OUTPUT_DIR"
-HOME=${HOME:-/home/svtplay}
 mkdir -p "$HOME/.cache"
 touch /var/log/svtplay-dl.log
 

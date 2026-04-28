@@ -19,6 +19,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/download.sh
 
 VOLUME ["/downloads"]
 
+ENV HOME=/home/svtplay
 ENV OUTPUT_DIR=/downloads
 ENV CRON_SCHEDULE="0 3 * * *"
 ENV SVTPLAY_DL_COMMANDS=""
