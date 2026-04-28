@@ -9,9 +9,8 @@ RUN pip install --no-cache-dir svtplay-dl
 RUN addgroup -S svtplay \
  && adduser -S -G svtplay -h /home/svtplay -s /bin/sh svtplay
 
-RUN mkdir -p /downloads /var/log /var/run /home/svtplay/.cache \
- && chown -R svtplay:svtplay /downloads /var/log /var/run /home/svtplay/.cache \
- && chmod 1777 /var/run
+RUN mkdir -p /downloads /home/svtplay/.cache \
+ && chown -R svtplay:svtplay /downloads /home/svtplay/.cache
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY download.sh /usr/local/bin/download.sh
