@@ -58,6 +58,16 @@ services:
 
 Because the container runs as a fixed non-root user, bind-mounted files written by the container may still appear owned by a numeric UID on the host, but the container itself will no longer run as root.
 
+To make host bind mounts writable by the container, either:
+
+- use a Docker named volume instead of a host path, or
+- make the host directory writable by uid `100` / gid `101`, for example:
+
+```sh
+mkdir -p downloads
+sudo chown -R 100:101 downloads
+```
+
 ## GitHub Actions / GHCR
 
 A workflow file is included at `.github/workflows/publish.yml`.
