@@ -10,8 +10,7 @@ RUN addgroup -S svtplay \
  && adduser -S -G svtplay -h /home/svtplay -s /bin/sh svtplay
 
 RUN mkdir -p /downloads /var/log /var/run \
- && chown -R svtplay:svtplay /downloads \
- && chmod 0755 /var/log \
+ && chown -R svtplay:svtplay /downloads /var/log /var/run \
  && chmod 1777 /var/run
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
@@ -24,4 +23,5 @@ ENV OUTPUT_DIR=/downloads
 ENV CRON_SCHEDULE="0 3 * * *"
 ENV SVTPLAY_DL_COMMANDS=""
 
+USER svtplay
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
