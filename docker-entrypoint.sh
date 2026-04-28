@@ -1,16 +1,6 @@
 #!/bin/sh
 set -eu
 
-# ── Privilege drop ────────────────────────────────────────────────────────────
-# If we are root (e.g. default container start), fix the bind-mount ownership
-# so the svtplay user can write to it, then re-exec this same script as svtplay.
-# The second invocation will no longer be root and will skip this block.
-if [ "$(id -u)" = "0" ]; then
-  chown -R svtplay:svtplay "${OUTPUT_DIR:-/downloads}"
-  exec su-exec svtplay "$0" "$@"
-fi
-# ─────────────────────────────────────────────────────────────────────────────
-
 mkdir -p "$OUTPUT_DIR"
 
 if [ -n "${SVTPLAY_DL_COMMANDS:-}" ]; then

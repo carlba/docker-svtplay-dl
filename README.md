@@ -18,9 +18,10 @@ docker build -t docker-svtplay-dl:latest .
 ## Run locally
 
 ```sh
+mkdir -p downloads
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
   -e SVTPLAY_DL_COMMANDS='svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...' \
-  -e CRON_SCHEDULE="0 3 * * *" \
   -v "$PWD/downloads:/downloads" \
   docker-svtplay-dl:latest
 ```
@@ -32,42 +33,33 @@ docker run --rm \
 
 If `SVTPLAY_DL_COMMANDS` is set, it is used for downloads.
 
-This image uses a fixed non-root `svtplay` user, and `/downloads`, `/var/log`, and `/var/run` are owned by that user.
+The container runs as whatever user is specified via `user:`. Use your host
+uid/gid so downloaded files are owned by your normal user:
+
+```sh
+mkdir -p downloads
+```
 
 Example Compose configuration:
 
 ```yaml
 services:
   svtplay-dl:
-    build:
-      context: .
-      dockerfile: Dockerfile
     image: docker-svtplay-dl:latest
+    user: "${UID}:${GID}"
     environment:
-      CRON_SCHEDULE: '* * * * *'
       SVTPLAY_DL_COMMANDS: |
         svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...
         svtplay-dl --only-audio -o /downloads https://www.svtplay.se/audio/...
       OUTPUT_DIR: /downloads
     volumes:
       - ./downloads:/downloads
-      - ./config:/config:ro
+    restart: unless-stopped
 ```
 
-Because the container starts as root and uses `su-exec` to drop to the non-root
-`svtplay` user (uid 100) at runtime, the bind-mounted `/downloads` directory is
-automatically `chown`'d to `svtplay` on every container start. No manual host
-ownership changes are needed — just create the directory and mount it:
-
-```sh
-mkdir -p downloads
-```
-
-Files written inside the container will be owned by uid `100` on the host, which
-is fine for a download-only directory. Host users can read them normally (default
-file mode 644). If you need the host user to own the files, run the container with
-`user: "${UID}:${GID}"` in Compose and accept that the `svtplay` user name will
-not resolve inside the container.
+The `./downloads` directory is created by you on the host and bind-mounted into
+the container. The process runs as your uid, so files are owned by your host user
+with no extra configuration needed.
 
 ## GitHub Actions / GHCR
 
