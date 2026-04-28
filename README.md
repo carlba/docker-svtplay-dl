@@ -20,7 +20,8 @@ docker build -t docker-svtplay-dl:latest .
 ```sh
 mkdir -p downloads
 docker run --rm \
-  --user "$(id -u):$(id -g)" \
+  -e PUID=$(id -u) \
+  -e PGID=$(id -g) \
   -e SVTPLAY_DL_COMMANDS='svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...' \
   -v "$PWD/downloads:/downloads" \
   docker-svtplay-dl:latest
@@ -30,15 +31,14 @@ docker run --rm \
 
 - `SVTPLAY_DL_COMMANDS` - One or more full `svtplay-dl` commands to run. Use a multiline value to define different commands for each download.
 - `OUTPUT_DIR` - Download destination inside the container (default: `/downloads`).
+- `PUID` - User ID to run downloads as (default: `100`). Set to your host uid so files are owned by your user.
+- `PGID` - Group ID to run downloads as (default: `101`). Set to your host gid.
 
 If `SVTPLAY_DL_COMMANDS` is set, it is used for downloads.
 
-The container runs as whatever user is specified via `user:`. Use your host
-uid/gid so downloaded files are owned by your normal user:
-
-```sh
-mkdir -p downloads
-```
+The container starts as root, uses `PUID`/`PGID` to fix bind-mount ownership,
+then drops privileges before running any downloads. This means the `./downloads`
+directory is always writable regardless of how it was created on the host.
 
 Example Compose configuration:
 
@@ -46,20 +46,16 @@ Example Compose configuration:
 services:
   svtplay-dl:
     image: docker-svtplay-dl:latest
-    user: "${UID}:${GID}"
     environment:
+      PUID: 1000   # run: id -u
+      PGID: 1000   # run: id -g
       SVTPLAY_DL_COMMANDS: |
         svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...
-        svtplay-dl --only-audio -o /downloads https://www.svtplay.se/audio/...
       OUTPUT_DIR: /downloads
     volumes:
       - ./downloads:/downloads
     restart: unless-stopped
 ```
-
-The `./downloads` directory is created by you on the host and bind-mounted into
-the container. The process runs as your uid, so files are owned by your host user
-with no extra configuration needed.
 
 ## GitHub Actions / GHCR
 

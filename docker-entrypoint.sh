@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+if [ "$(id -u)" = "0" ]; then
+  chown -R "${PUID}:${PGID}" "${OUTPUT_DIR:-/downloads}"
+  exec su-exec "${PUID}:${PGID}" "$0" "$@"
+fi
+
 mkdir -p "$OUTPUT_DIR"
 
 if [ -n "${SVTPLAY_DL_COMMANDS:-}" ]; then

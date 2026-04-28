@@ -3,7 +3,7 @@ FROM python:3.12-alpine
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-RUN apk add --no-cache tzdata ca-certificates ffmpeg
+RUN apk add --no-cache tzdata ca-certificates ffmpeg su-exec
 RUN pip install --no-cache-dir svtplay-dl
 
 RUN addgroup -S svtplay \
@@ -21,7 +21,8 @@ VOLUME ["/downloads"]
 
 ENV HOME=/home/svtplay
 ENV OUTPUT_DIR=/downloads
-ENV CRON_SCHEDULE="0 3 * * *"
 ENV SVTPLAY_DL_COMMANDS=""
+ENV PUID=100
+ENV PGID=101
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
