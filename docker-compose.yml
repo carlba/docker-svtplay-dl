@@ -4,20 +4,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: docker-svtplay-dl:latest
-    container_name: docker-svtplay-dl
+    image: svtplay-dl:latest
+    container_name: svtplay-dl
     restart: unless-stopped
     environment:
-      CRON_SCHEDULE: '* * * * *'
       SVTPLAY_DL_COMMANDS: |
         svtplay-dl --all-last 1 --subfolder  -o /downloads https://www.svtplay.se/video/KVk3L5d/dips
-        svtplay-dl --all-last 1 --subfolder  -o /downloads https://www.svtplay.se/video/ja4YNRY/sune-vs-sune
       OUTPUT_DIR: /downloads
     volumes:
       - ./downloads:/downloads
-      - ./config:/config:ro
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '3'

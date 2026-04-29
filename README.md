@@ -20,8 +20,6 @@ docker build -t docker-svtplay-dl:latest .
 ```sh
 mkdir -p downloads
 docker run --rm \
-  -e PUID=$(id -u) \
-  -e PGID=$(id -g) \
   -e SVTPLAY_DL_COMMANDS='svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...' \
   -v "$PWD/downloads:/downloads" \
   docker-svtplay-dl:latest
@@ -31,31 +29,35 @@ docker run --rm \
 
 - `SVTPLAY_DL_COMMANDS` - One or more full `svtplay-dl` commands to run. Use a multiline value to define different commands for each download.
 - `OUTPUT_DIR` - Download destination inside the container (default: `/downloads`).
-- `PUID` - User ID to run downloads as (default: `100`). Set to your host uid so files are owned by your user.
-- `PGID` - Group ID to run downloads as (default: `101`). Set to your host gid.
 
 If `SVTPLAY_DL_COMMANDS` is set, it is used for downloads.
 
-The container starts as root, uses `PUID`/`PGID` to fix bind-mount ownership,
-then drops privileges before running any downloads. This means the `./downloads`
-directory is always writable regardless of how it was created on the host.
+This image runs a simple shell loop that executes `SVTPLAY_DL_COMMANDS` every 60 seconds. There is no cron daemon and `CRON_SCHEDULE` is not used.
 
 Example Compose configuration:
 
 ```yaml
 services:
   svtplay-dl:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: docker-svtplay-dl:latest
     environment:
-      PUID: 1000   # run: id -u
-      PGID: 1000   # run: id -g
       SVTPLAY_DL_COMMANDS: |
         svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...
       OUTPUT_DIR: /downloads
     volumes:
       - ./downloads:/downloads
-    restart: unless-stopped
 ```
+
+If you want files written inside `/downloads` to be owned by your host user, create the directory on the host first with the desired ownership, or run the container with `user: "${UID}:${GID}"` in Compose.
+
+```sh
+mkdir -p downloads
+```
+
+Files written inside `/downloads` will appear on the host with whatever ownership Docker assigns to the bind mount.
 
 ## GitHub Actions / GHCR
 
