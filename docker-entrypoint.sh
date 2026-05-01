@@ -12,12 +12,11 @@ run_download() {
         echo "Running: $cmd"
         sh -c "$cmd"
       done < /tmp/svtplay-dl-commands.txt
-      exit 0
+      return 0
     fi
   fi
   echo "No commands configured. Set SVTPLAY_DL_COMMANDS." >&2
-  exit 1
-
+  return 1
 }
 
 run_download
