@@ -22,6 +22,6 @@ run_download() {
 
 run_download
 while true; do
-  sleep 60
+  sleep 3600
   run_download
 done
