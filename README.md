@@ -1,13 +1,13 @@
 # docker-svtplay-dl
 
-A minimal Docker wrapper for `svtplay-dl` with periodic scheduling.
+A Node/TypeScript wrapper for `svtplay-dl` with optional cron-style scheduling.
 
 ## What this image does
 
 - Installs `svtplay-dl` on Alpine Linux.
-- Runs downloads on a fixed 60-second sleep loop (no cron daemon).
-- Supports configurable download targets via `SVTPLAY_DL_COMMANDS`.
-- Builds and pushes to GitHub Container Registry via GitHub Actions.
+- Runs one or more full `SVTPLAY_DL_COMMANDS` entries.
+- Supports `OUTPUT_DIR` as the download destination inside the container.
+- Supports `CRON_PATTERN` for repeated scheduled runs.
 
 ## Build locally
 
@@ -20,7 +20,9 @@ docker build -t docker-svtplay-dl:latest .
 ```sh
 mkdir -p downloads
 docker run --rm \
-  -e SVTPLAY_DL_COMMANDS='svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...' \
+  -e OUTPUT_DIR=/downloads \
+  -e SVTPLAY_DL_COMMANDS='svtplay-dl --only-video -o "$OUTPUT_DIR" https://www.svtplay.se/video/...' \
+  -e CRON_PATTERN='0 * * * *' \
   -v "$PWD/downloads:/downloads" \
   docker-svtplay-dl:latest
 ```
@@ -29,12 +31,15 @@ docker run --rm \
 
 - `SVTPLAY_DL_COMMANDS` - One or more full `svtplay-dl` commands to run. Use a multiline value to define different commands for each download.
 - `OUTPUT_DIR` - Download destination inside the container (default: `/downloads`).
+- `CRON_PATTERN` - Cron-style schedule for repeated runs. Leave empty to run once and exit.
 
-If `SVTPLAY_DL_COMMANDS` is set, it is used for downloads.
+### Behavior
 
-This image runs a simple shell loop that executes `SVTPLAY_DL_COMMANDS` every 60 seconds. There is no cron daemon and `CRON_SCHEDULE` is not used.
+- If `CRON_PATTERN` is empty, the container runs the configured commands once and exits.
+- If `CRON_PATTERN` is set, the container schedules repeated runs according to the cron expression.
+- Only `SVTPLAY_DL_COMMANDS`, `OUTPUT_DIR`, and `CRON_PATTERN` are supported.
 
-Example Compose configuration:
+## Example Compose configuration
 
 ```yaml
 services:
@@ -43,21 +48,22 @@ services:
       context: .
       dockerfile: Dockerfile
     image: docker-svtplay-dl:latest
+    container_name: svtplay-dl
+    restart: unless-stopped
     environment:
       SVTPLAY_DL_COMMANDS: |
-        svtplay-dl --only-video -o /downloads https://www.svtplay.se/video/...
+        svtplay-dl --all-last 1 --subfolder -o "$OUTPUT_DIR" https://www.svtplay.se/video/KVk3L5d/dips
       OUTPUT_DIR: /downloads
+      CRON_PATTERN: '0 * * * *'
     volumes:
       - ./downloads:/downloads
 ```
 
-If you want files written inside `/downloads` to be owned by your host user, create the directory on the host first with the desired ownership, or run the container with `user: "${UID}:${GID}"` in Compose.
+## Notes
 
-```sh
-mkdir -p downloads
-```
-
-Files written inside `/downloads` will appear on the host with whatever ownership Docker assigns to the bind mount.
+- `SVTPLAY_DL_COMMANDS` is required for download execution.
+- `OUTPUT_DIR` is created automatically inside the container.
+- Set `user: "${UID}:${GID}"` in Compose if you need host-owned files.
 
 ## GitHub Actions / GHCR
 

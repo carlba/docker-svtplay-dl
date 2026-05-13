@@ -1,11 +1,18 @@
-FROM python:3.12-alpine
+FROM node:lts-alpine
 
-RUN apk add --no-cache tzdata ca-certificates ffmpeg su-exec
-RUN pip install --no-cache-dir svtplay-dl
+RUN apk add --no-cache python3 py3-pip ffmpeg tzdata ca-certificates
+RUN python3 -m venv /opt/venv \
+  && /opt/venv/bin/pip install --no-cache-dir --upgrade pip svtplay-dl
+ENV PATH="/opt/venv/bin:$PATH"
 
-COPY docker-entrypoint.sh /tmp/svtplay-dl/docker-entrypoint.sh
-RUN chmod +x /tmp/svtplay-dl/docker-entrypoint.sh
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
 
 VOLUME ["/downloads"]
 
-CMD ["/tmp/svtplay-dl/docker-entrypoint.sh"]
+CMD ["node", "dist/index.js"]

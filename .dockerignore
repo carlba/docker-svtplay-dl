@@ -1,1 +1,6 @@
 downloads
+node_modules
+dist
+.env
+.git
+.github
