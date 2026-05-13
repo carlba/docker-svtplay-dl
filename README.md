@@ -32,12 +32,19 @@ docker run --rm \
 - `SVTPLAY_DL_COMMANDS` - One or more full `svtplay-dl` commands to run. Use a multiline value to define different commands for each download.
 - `OUTPUT_DIR` - Download destination inside the container (default: `/downloads`).
 - `CRON_PATTERN` - Cron-style schedule for repeated runs. Leave empty to run once and exit.
+- `PLEX_URL` - Plex server URL (default: `http://plex:32400`).
+- `PLEX_TOKEN` - Plex API token used for library refresh requests.
+- `PLEX_SECTION_ID` - Plex library section ID to refresh.
+- `PUSHOVER_URL` - Optional Pushover endpoint URL (default: `https://api.pushover.net/1/messages.json`).
+- `PUSHOVER_TOKEN` - Pushover API token.
+- `PUSHOVER_USER` - Pushover user key.
 
 ### Behavior
 
 - If `CRON_PATTERN` is empty, the container runs the configured commands once and exits.
 - If `CRON_PATTERN` is set, the container schedules repeated runs according to the cron expression.
-- Only `SVTPLAY_DL_COMMANDS`, `OUTPUT_DIR`, and `CRON_PATTERN` are supported.
+- After each command completes, the container detects whether any new/changed files appeared in `OUTPUT_DIR`.
+- If a command produced changes, Plex is refreshed for the configured section and a Pushover notification is sent when configured.
 
 ## Example Compose configuration
 

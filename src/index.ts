@@ -1,37 +1,110 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
+import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { Cron } from 'croner';
 import { loadConfig } from './config.js';
+import { refreshPlex } from './plex.js';
+import fs from 'node:fs/promises';
+
+let currentChild: ChildProcess | null = null;
+
+function forwardSignal(signal: NodeJS.Signals): void {
+  if (currentChild && !currentChild.killed) {
+    console.log(`Forwarding ${signal} to child process ${currentChild.pid}`);
+    currentChild.kill(signal);
+  }
+}
+
+function setupSignalForwarding(): void {
+  const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
+
+  for (const signal of signals) {
+    process.on(signal, () => {
+      forwardSignal(signal);
+      process.exit(0);
+    });
+  }
+}
 
 async function ensureOutputDir(outputDir: string): Promise<void> {
   await mkdir(outputDir, { recursive: true });
 }
 
-async function runCommand(command: string, outputDir: string): Promise<void> {
-  const child = spawn('sh', ['-c', command], {
+async function listFiles(rootPath: string): Promise<string[]> {
+  const results: string[] = [];
+
+  try {
+    const entries = await fs.readdir(rootPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(rootPath, entry.name);
+      if (entry.isDirectory()) {
+        const nested = await listFiles(fullPath);
+        for (const nestedPath of nested) {
+          results.push(path.join(entry.name, nestedPath));
+        }
+      } else if (entry.isFile()) {
+        results.push(entry.name);
+      }
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      console.error(error, 'Error while listing files');
+      return [];
+    }
+    throw error;
+  }
+
+  return results;
+}
+
+async function runCommand(command: string, outputDir: string): Promise<string[]> {
+  const beforeFiles = new Set(await listFiles(outputDir));
+
+  currentChild = spawn('sh', ['-c', command], {
     stdio: 'inherit',
     env: { ...process.env, OUTPUT_DIR: outputDir }
   });
 
   const exitCode = await new Promise<number>((resolve, reject) => {
-    child.on('error', reject);
-    child.on('close', resolve);
+    currentChild?.on('error', reject);
+    currentChild?.on('close', resolve);
+  }).finally(() => {
+    currentChild = null;
   });
 
   if (exitCode !== 0) {
     throw new Error(`Command exited with code ${exitCode}: ${command}`);
   }
+
+  const afterFiles = await listFiles(outputDir);
+  return afterFiles.filter(file => !beforeFiles.has(file));
 }
 
 async function runCommands(commands: string[], outputDir: string): Promise<void> {
   for (const command of commands) {
     console.log(`Running: ${command}`);
-    await runCommand(command, outputDir);
+    const changedFiles = await runCommand(command, outputDir);
+
+    if (changedFiles.length > 0) {
+      console.log(`Detected ${changedFiles.length} new/changed file(s) after command.`);
+      try {
+        await refreshPlex(
+          outputDir,
+          `New episodes where downloaded ${JSON.stringify(changedFiles)}`
+        );
+      } catch (error) {
+        console.error('Plex refresh failed:', error);
+      }
+    } else {
+      console.log('No file changes detected after command, skipping Plex refresh.');
+    }
   }
 }
 
 async function main(): Promise<void> {
   const config = loadConfig();
+  setupSignalForwarding();
   await ensureOutputDir(config.outputDir);
 
   if (!config.cronPattern) {
