@@ -2,7 +2,8 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { Cron } from 'croner';
-import { loadConfig } from './config.js';
+import { buildCommandEnvironment, initConfig } from './lib/config.js';
+import { envSchema, type Config } from './schema.js';
 import { refreshPlex } from './plex.js';
 import fs from 'node:fs/promises';
 
@@ -61,14 +62,18 @@ async function listFiles(rootPath: string): Promise<string[]> {
 async function runCommand(command: string, outputDir: string): Promise<string[]> {
   const beforeFiles = new Set(await listFiles(outputDir));
 
-  currentChild = spawn('sh', ['-c', command], {
+  const child = spawn('sh', ['-c', command], {
     stdio: 'inherit',
-    env: { ...process.env, OUTPUT_DIR: outputDir }
+    env: buildCommandEnvironment(outputDir),
   });
 
+  currentChild = child;
+
   const exitCode = await new Promise<number>((resolve, reject) => {
-    currentChild?.on('error', reject);
-    currentChild?.on('close', resolve);
+    child.on('error', reject);
+    child.on('close', code => {
+      resolve(code ?? 0);
+    });
   }).finally(() => {
     currentChild = null;
   });
@@ -81,7 +86,7 @@ async function runCommand(command: string, outputDir: string): Promise<string[]>
   return afterFiles.filter(file => !beforeFiles.has(file));
 }
 
-async function runCommands(commands: string[], outputDir: string): Promise<void> {
+async function runCommands(config: Config, commands: string[], outputDir: string): Promise<void> {
   for (const command of commands) {
     console.log(`Running: ${command}`);
     const changedFiles = await runCommand(command, outputDir);
@@ -90,8 +95,9 @@ async function runCommands(commands: string[], outputDir: string): Promise<void>
       console.log(`Detected ${changedFiles.length} new/changed file(s) after command.`);
       try {
         await refreshPlex(
+          config,
           outputDir,
-          `New episodes where downloaded ${JSON.stringify(changedFiles)}`
+          `New episodes were downloaded ${JSON.stringify(changedFiles)}`
         );
       } catch (error) {
         console.error('Plex refresh failed:', error);
@@ -103,21 +109,27 @@ async function runCommands(commands: string[], outputDir: string): Promise<void>
 }
 
 async function main(): Promise<void> {
-  const config = loadConfig();
+  const logger = {
+    info: console.info.bind(console),
+    error: console.error.bind(console),
+  };
+
+  const config = initConfig(envSchema, logger);
   setupSignalForwarding();
   await ensureOutputDir(config.outputDir);
 
-  if (!config.cronPattern) {
-    await runCommands(config.commands, config.outputDir);
+  const cronPattern = config.cronPattern;
+  if (!cronPattern) {
+    await runCommands(config, config.commands, config.outputDir);
     return;
   }
 
-  console.log(`Scheduling downloads with CRON_PATTERN='${config.cronPattern}'`);
-  await runCommands(config.commands, config.outputDir);
+  console.log(`Scheduling downloads with CRON_PATTERN='${cronPattern}'`);
+  await runCommands(config, config.commands, config.outputDir);
 
-  new Cron(config.cronPattern, async () => {
+  new Cron(cronPattern, async () => {
     try {
-      await runCommands(config.commands, config.outputDir);
+      await runCommands(config, config.commands, config.outputDir);
     } catch (error) {
       console.error('Scheduled run failed:', error);
     }

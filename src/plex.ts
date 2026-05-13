@@ -1,35 +1,60 @@
-const PLEX_URL = process.env['PLEX_URL'] ?? 'http://plex:32400';
-const PLEX_TOKEN = process.env['PLEX_TOKEN'] ?? '';
-const PLEX_SECTION_ID = process.env['PLEX_SECTION_ID'] ?? '';
-const PUSHOVER_URL = process.env['PUSHOVER_URL'] ?? 'https://api.pushover.net/1/messages.json';
-const PUSHOVER_TOKEN = process.env['PUSHOVER_TOKEN'] ?? '';
-const PUSHOVER_USER = process.env['PUSHOVER_USER'] ?? '';
+import got, { HTTPError } from 'got';
 
-async function fetchStatus(url: string): Promise<number> {
+export interface PlexConfig {
+  plexUrl: string;
+  plexToken?: string;
+  plexSectionId?: string;
+  pushoverUrl: string;
+  pushoverToken?: string;
+  pushoverUser?: string;
+}
+
+export const httpClient = got.extend({
+  headers: {
+    'user-agent': 'docker-svtplay-dl/0.1.0',
+  },
+  retry: {
+    limit: 2,
+    methods: ['GET', 'POST'],
+  },
+  throwHttpErrors: false,
+});
+
+async function fetchStatus(url: string, searchParams: Record<string, string>): Promise<number> {
   try {
-    const response = await fetch(url, { method: 'GET' });
-    return response.status || 0;
-  } catch {
-    return 0;
+    const response = await httpClient.get(url, { searchParams });
+    return response.statusCode ?? 0;
+  } catch (error: unknown) {
+    if (error instanceof HTTPError) {
+      throw new Error(`Failed Plex request to ${url}: ${error.response.statusCode}`, {
+        cause: error,
+      });
+    }
+
+    if (error instanceof Error) {
+      throw error;
+    }
+
+    throw new Error(`Failed Plex request to ${url}: ${String(error)}`, {
+      cause: error,
+    });
   }
 }
 
-function buildRefreshUrl(sectionId: string, path: string): string {
-  const query = new URLSearchParams({ 'X-Plex-Token': PLEX_TOKEN });
-  if (path) {
-    query.append('path', path);
-  }
-  return `${PLEX_URL}/library/sections/${sectionId}/refresh?${query.toString()}`;
-}
-
-async function refreshSection(sectionId: string, label: string, path: string): Promise<boolean> {
-  if (!sectionId) {
+async function refreshSection(config: PlexConfig, label: string, path: string): Promise<boolean> {
+  if (!config.plexSectionId) {
     console.log(`WARNING: PLEX_SECTION_ID missing, skipping Plex refresh for ${label}`);
     return false;
   }
 
-  const url = buildRefreshUrl(sectionId, path);
-  const status = await fetchStatus(url);
+  const url = `${config.plexUrl}/library/sections/${config.plexSectionId}/refresh`;
+  const params: Record<string, string> = {
+    'X-Plex-Token': config.plexToken ?? '',
+  };
+  if (path) {
+    params.path = path;
+  }
+  const status = await fetchStatus(url, params);
 
   console.log(`Plex refresh HTTP status for ${label}: ${status}`);
   if (status === 200 || status === 201 || status === 204) {
@@ -40,49 +65,53 @@ async function refreshSection(sectionId: string, label: string, path: string): P
   return false;
 }
 
-async function notifyPushover(message: string): Promise<void> {
-  if (!PUSHOVER_TOKEN || !PUSHOVER_USER) {
+async function notifyPushover(config: PlexConfig, message: string): Promise<void> {
+  if (!config.pushoverToken || !config.pushoverUser) {
     return;
   }
 
   const form = new URLSearchParams({
-    token: PUSHOVER_TOKEN,
-    user: PUSHOVER_USER,
+    token: config.pushoverToken,
+    user: config.pushoverUser,
     title: 'svtplay-dl -> Plex Refresh',
-    message
+    message,
   });
 
   try {
-    const response = await fetch(PUSHOVER_URL, {
-      method: 'POST',
-      body: form
+    const response = await httpClient.post(config.pushoverUrl, {
+      form,
     });
 
-    if (response.status === 200) {
+    if (response.statusCode === 200) {
       console.log('Pushover notification sent');
     } else {
-      console.log(`WARNING: Pushover notification failed (${response.status})`);
+      console.log(`WARNING: Pushover notification failed (${response.statusCode})`);
     }
   } catch (error: unknown) {
-    const messageString =
-      typeof error === 'object' && error !== null && 'message' in error
-        ? String((error as { message: unknown }).message)
-        : String(error);
+    if (error instanceof HTTPError) {
+      console.log(`WARNING: Failed to send Pushover notification (${error.response.statusCode})`);
+      return;
+    }
+
+    const messageString = error instanceof Error ? error.message : String(error);
     console.log(`WARNING: Failed to send Pushover notification (${messageString})`);
   }
 }
 
-export async function refreshPlex(downloadPath: string, reason: string): Promise<boolean> {
-  if (!PLEX_TOKEN) {
+export async function refreshPlex(
+  config: PlexConfig,
+  downloadPath: string,
+  reason: string
+): Promise<boolean> {
+  if (!config.plexToken) {
     console.log('WARNING: PLEX_TOKEN missing, skipping Plex refresh');
     return false;
   }
 
-  const path = downloadPath || '';
-  const success = await refreshSection(PLEX_SECTION_ID, 'svtplay-dl', path);
+  const success = await refreshSection(config, 'svtplay-dl', downloadPath || '');
 
   if (success) {
-    await notifyPushover(reason);
+    await notifyPushover(config, reason);
   }
 
   return success;
