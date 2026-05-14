@@ -22,7 +22,7 @@ const optionalString = z
 
 export const envSchema = z
   .object({
-    SVTPLAY_DL_COMMANDS: parseCommands,
+    SVTPLAY_DL_COMMANDS: parseCommands.transform(value => value),
     OUTPUT_DIR: z.string().trim().default('/downloads'),
     CRON_PATTERN: optionalString,
     PLEX_URL: z.string().trim().url().default('http://plex:32400'),

@@ -95,9 +95,9 @@ async function runCommands(config: Config, commands: string[], outputDir: string
       console.log(`Detected ${changedFiles.length} new/changed file(s) after command.`);
       try {
         await refreshPlex(
-          config,
           outputDir,
-          `New episodes were downloaded ${JSON.stringify(changedFiles)}`
+          config,
+          `New episodes where downloaded ${['\n', ...changedFiles].join('\n')}`
         );
       } catch (error) {
         console.error('Plex refresh failed:', error);
