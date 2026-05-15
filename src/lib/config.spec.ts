@@ -20,6 +20,7 @@ describe('config module', () => {
       plexUrl: 'http://plex:32400',
       plexToken: undefined,
       plexSectionId: undefined,
+      plexBasePath: '/streaming/svt',
       pushoverUrl: 'https://api.pushover.net/1/messages.json',
       pushoverToken: undefined,
       pushoverUser: undefined,

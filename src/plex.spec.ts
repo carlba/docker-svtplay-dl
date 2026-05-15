@@ -1,14 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import nock from 'nock';
 import { refreshPlex } from './plex.js';
-
-const getMock = vi.fn();
-const postMock = vi.fn();
-const extendMock = vi.fn(() => ({ get: getMock, post: postMock }));
-
-vi.mock('got', () => ({
-  default: { extend: extendMock },
-  __esModule: true,
-}));
 
 const config = {
   commands: [],
@@ -17,6 +9,7 @@ const config = {
   plexUrl: 'http://localhost',
   plexToken: 'test-token',
   plexSectionId: '1',
+  plexBasePath: '/streaming/svt',
   pushoverUrl: 'https://api.pushover.net/1/messages.json',
   pushoverToken: 'push-token',
   pushoverUser: 'push-user',
@@ -24,29 +17,44 @@ const config = {
 
 describe('refreshPlex', () => {
   beforeEach(() => {
-    extendMock.mockClear();
-    getMock.mockClear();
-    postMock.mockClear();
+    nock.cleanAll();
+    nock.disableNetConnect();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    nock.cleanAll();
+    nock.enableNetConnect();
   });
 
   it('refreshes Plex and sends a Pushover notification when refresh succeeds', async () => {
-    getMock.mockResolvedValueOnce({ statusCode: 200 });
-    postMock.mockResolvedValueOnce({ statusCode: 200 });
+    const plexScope = nock(config.plexUrl)
+      .get('/library/sections/1/refresh')
+      .query({ path: '/downloads', 'X-Plex-Token': config.plexToken })
+      .reply(200);
+
+    let pushoverPayload: string | undefined;
+
+    const pushoverScope = nock('https://api.pushover.net')
+      .post('/1/messages.json')
+      .reply(200, function (_uri, requestBody) {
+        if (typeof requestBody === 'string') {
+          pushoverPayload = requestBody;
+        } else if (requestBody instanceof Buffer) {
+          pushoverPayload = requestBody.toString('utf8');
+        }
+        return '';
+      });
 
     const result = await refreshPlex('/downloads', config, 'The cause');
 
     expect(result).toBe(true);
-    expect(extendMock).toHaveBeenCalledTimes(2);
-    expect(getMock).toHaveBeenCalledWith('library/sections/1/refresh', {
-      searchParams: { path: '/downloads' },
-    });
-    expect(postMock).toHaveBeenCalledWith(config.pushoverUrl, {
-      form: { title: 'yt-dlp -> Plex Refresh', message: 'The cause' },
-    });
+    expect(plexScope.isDone()).toBe(true);
+    expect(pushoverScope.isDone()).toBe(true);
+    expect(pushoverPayload).toBeDefined();
+
+    const payload = new URLSearchParams(pushoverPayload ?? '');
+    expect(payload.get('title')).toBe('yt-dlp -> Plex Refresh');
+    expect(payload.get('message')).toBe('The cause');
   });
 
   it('skips Plex refresh when PLEX_TOKEN is missing', async () => {
@@ -55,8 +63,5 @@ describe('refreshPlex', () => {
     const result = await refreshPlex('/downloads', partialConfig, 'The cause');
 
     expect(result).toBe(false);
-    expect(extendMock).not.toHaveBeenCalled();
-    expect(getMock).not.toHaveBeenCalled();
-    expect(postMock).not.toHaveBeenCalled();
   });
 });

@@ -9,17 +9,6 @@ function createPlexClient(config: { plexUrl: string; plexToken: string }) {
   });
 }
 
-function createPushoverClient(config: {
-  pushoverToken: string;
-  pushoverUser: string;
-  pushoverUrl: string;
-}) {
-  return got.extend({
-    prefixUrl: config.pushoverUrl,
-    form: { token: config.pushoverToken, user: config.pushoverUser },
-  });
-}
-
 function validatePushoverConfig(
   config: Config
 ): config is Config & { pushoverToken: string; pushoverUser: string; pushoverUrl: string } {
@@ -43,11 +32,14 @@ async function notifyPushover(message: string, config: Config): Promise<void> {
     return;
   }
 
-  const pushoverClient = createPushoverClient(config);
-
   try {
-    await pushoverClient.post(config.pushoverUrl, {
-      form: { title: 'yt-dlp -> Plex Refresh', message },
+    await got.post(config.pushoverUrl, {
+      form: {
+        title: 'yt-dlp -> Plex Refresh',
+        message,
+        token: config.pushoverToken,
+        user: config.pushoverUser,
+      },
     });
 
     console.log('Pushover notification sent');
