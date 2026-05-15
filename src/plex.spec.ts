@@ -17,6 +17,7 @@ const config = {
   plexUrl: 'http://localhost',
   plexToken: 'test-token',
   plexSectionId: '1',
+  plexBasePath: '/streaming/svt',
   pushoverUrl: 'https://api.pushover.net/1/messages.json',
   pushoverToken: 'push-token',
   pushoverUser: 'push-user',
