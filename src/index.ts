@@ -36,6 +36,7 @@ async function listFiles(rootPath: string): Promise<string[]> {
 
   try {
     const entries = await fs.readdir(rootPath, { withFileTypes: true });
+    console.log({ entries, rootPath });
 
     for (const entry of entries) {
       const fullPath = path.join(rootPath, entry.name);
@@ -61,6 +62,8 @@ async function listFiles(rootPath: string): Promise<string[]> {
 
 async function runCommand(command: string, outputDir: string): Promise<string[]> {
   const beforeFiles = new Set(await listFiles(outputDir));
+
+  console.debug({ beforeFiles, outputDir });
 
   const child = spawn('sh', ['-c', command], {
     stdio: 'inherit',
@@ -95,7 +98,7 @@ async function runCommands(config: Config, commands: string[], outputDir: string
       console.log(`Detected ${changedFiles.length} new/changed file(s) after command.`);
       try {
         await refreshPlex(
-          outputDir,
+          path.join(config.plexBasePath, path.dirname(changedFiles[0])),
           config,
           `New episodes where downloaded ${['\n', ...changedFiles].join('\n')}`
         );
