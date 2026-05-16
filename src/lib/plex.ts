@@ -1,6 +1,6 @@
 import got from 'got';
-import type { Config } from './lib/config.js';
-import { handleGotError } from './lib/utils.js';
+import type { Config } from './config.js';
+import { handleGotError } from './utils.js';
 
 function createPlexClient(config: { plexUrl: string; plexToken: string }) {
   return got.extend({
@@ -27,10 +27,12 @@ function validatePushoverConfig(
   return true;
 }
 
-async function notifyPushover(message: string, config: Config): Promise<void> {
+export async function notifyPushover(message: string, config: Config): Promise<void> {
   if (!validatePushoverConfig(config)) {
     return;
   }
+
+  console.log(`Notifying Pushover with ${message}`);
 
   try {
     await got.post(config.pushoverUrl, {
@@ -41,8 +43,6 @@ async function notifyPushover(message: string, config: Config): Promise<void> {
         user: config.pushoverUser,
       },
     });
-
-    console.log('Pushover notification sent');
   } catch (error: unknown) {
     handleGotError(error, 'sending Pushover notification', 'silence');
   }
@@ -74,8 +74,8 @@ export async function refreshPlex(
   if (!validatePlexConfig(config)) {
     return false;
   }
-  const plexClient = createPlexClient(config);
 
+  const plexClient = createPlexClient(config);
   const searchParams = downloadPath ? { path: downloadPath } : {};
 
   try {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import nock from 'nock';
-import { refreshPlex } from './plex.js';
+import { refreshPlex } from './lib/plex.js';
 
 const config = {
   commands: [],
